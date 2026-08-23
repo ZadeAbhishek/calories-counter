@@ -1,0 +1,60 @@
+rules_version = '2';
+
+// Baseline rules: any authenticated request is allowed. The app signs in
+// anonymously with no visible login screen (see src/firebase/auth.ts), so
+// this already blocks unauthenticated scanners/bots hitting the public
+// Firebase config. Once you have a real anonymous uid (visible in the
+// Firebase console's Authentication tab after your first load), harden
+// this further by replacing `isAllowedUser()` with an allowlist check,
+// e.g.:
+//
+//   function isAllowedUser() {
+//     return request.auth != null &&
+//       request.auth.uid in ["<your-anonymous-uid>"];
+//   }
+//
+// This pins access to your specific device/browser session(s) instead of
+// "anyone who calls signInAnonymously()", which is a public, credential-free
+// endpoint by design.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAllowedUser() {
+      return request.auth != null;
+    }
+
+    match /exercises/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
+    match /workoutLogs/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
+    match /workoutPlanItems/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
+    match /targets/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
+    match /dailyLogs/{id} {
+      allow read: if isAllowedUser();
+      // Each field is either absent, or explicitly null (an "unset" value
+      // the app writes for empty form fields), or a number — never any
+      // other type. Split from `delete` below: request.resource is null on
+      // delete, so a combined `write` rule referencing request.resource.data
+      // would error (and thus deny) every delete.
+      allow create, update: if isAllowedUser()
+        && (!('calories' in request.resource.data) || request.resource.data.calories == null || request.resource.data.calories is number)
+        && (!('protein' in request.resource.data) || request.resource.data.protein == null || request.resource.data.protein is number)
+        && (!('weight' in request.resource.data) || request.resource.data.weight == null || request.resource.data.weight is number);
+      allow delete: if isAllowedUser();
+    }
+
+    // Explicit deny-all fallthrough for anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
