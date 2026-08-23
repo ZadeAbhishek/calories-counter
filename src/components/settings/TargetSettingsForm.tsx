@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,15 +19,29 @@ export function TargetSettingsForm() {
   const [protein, setProtein] = useState('')
   const [calories, setCalories] = useState('')
   const [saving, setSaving] = useState(false)
-  const initialized = useRef(false)
 
-  useEffect(() => {
-    if (loading || initialized.current) return
-    initialized.current = true
+  // Pre-fills the form from Firestore exactly once, the first render after
+  // the initial load resolves — but resynced during render (not in an
+  // effect) and guarded by the SAME flag that field edits set. An effect
+  // keyed on `loading` alone has a real race: if the user starts typing
+  // before the initial Firestore snapshot arrives, the load-triggered sync
+  // fires after their keystroke and wipes out what they just typed. Since
+  // `initialized` only flips true once — from whichever happens first, the
+  // load or a keystroke — and a DOM event and a Firestore callback always
+  // land in separate render passes, there's no interleaving where one can
+  // clobber the other.
+  const [initialized, setInitialized] = useState(false)
+  if (!loading && !initialized) {
+    setInitialized(true)
     setWeight(targets?.targetWeight?.toString() ?? '')
     setProtein(targets?.targetProtein?.toString() ?? '')
     setCalories(targets?.targetCalories?.toString() ?? '')
-  }, [loading, targets])
+  }
+
+  function handleFieldChange(setter: (value: string) => void, value: string) {
+    setInitialized(true)
+    setter(value)
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -87,7 +101,9 @@ export function TargetSettingsForm() {
               inputMode="decimal"
               step="0.1"
               value={weight}
-              onChange={(event) => setWeight(event.target.value)}
+              onChange={(event) =>
+                handleFieldChange(setWeight, event.target.value)
+              }
               placeholder="e.g. 75"
             />
           </div>
@@ -101,7 +117,9 @@ export function TargetSettingsForm() {
               inputMode="decimal"
               step="1"
               value={protein}
-              onChange={(event) => setProtein(event.target.value)}
+              onChange={(event) =>
+                handleFieldChange(setProtein, event.target.value)
+              }
               placeholder="e.g. 150"
             />
           </div>
@@ -115,7 +133,9 @@ export function TargetSettingsForm() {
               inputMode="decimal"
               step="1"
               value={calories}
-              onChange={(event) => setCalories(event.target.value)}
+              onChange={(event) =>
+                handleFieldChange(setCalories, event.target.value)
+              }
               placeholder="e.g. 2200"
             />
           </div>

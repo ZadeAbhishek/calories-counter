@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DailyEntryForm } from '@/components/food/DailyEntryForm'
+import { StreaksSummary } from '@/components/food/StreaksSummary'
 import { WeightTrendChart } from '@/components/food/WeightTrendChart'
 import { ProteinIntakeChart } from '@/components/food/ProteinIntakeChart'
 import { CalorieDeficitChart } from '@/components/food/CalorieDeficitChart'
@@ -22,6 +23,10 @@ export function FoodTab() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Food</h1>
+      <StreaksSummary
+        dailyLogs={dailyLogs}
+        targetCalories={targets?.targetCalories ?? null}
+      />
       <DailyEntryForm
         dailyLogs={dailyLogs}
         upsertDailyLog={upsertDailyLog}
