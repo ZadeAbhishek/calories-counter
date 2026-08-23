@@ -38,6 +38,10 @@ service cloud.firestore {
       allow read, write: if isAllowedUser();
     }
 
+    match /notificationSettings/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
     match /dailyLogs/{id} {
       allow read: if isAllowedUser();
       // Each field is either absent, or explicitly null (an "unset" value

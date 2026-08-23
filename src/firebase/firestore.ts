@@ -14,6 +14,7 @@ import type { WorkoutLog } from '@/types/workoutLog'
 import type { WorkoutPlanItem } from '@/types/workoutPlanItem'
 import type { DailyLog } from '@/types/dailyLog'
 import type { Targets } from '@/types/targets'
+import type { NotificationSettings } from '@/types/notificationSettings'
 
 /** For collections whose documents carry an `id` field derived from the doc
  * key itself (never stored, always attached from `snapshot.id` on read). */
@@ -60,3 +61,8 @@ export const dailyLogsCol = collection(db, 'dailyLogs').withConverter(
 export const targetsDocRef = doc(db, 'targets', 'current').withConverter(
   plainConverter<Targets>(),
 )
+export const notificationSettingsDocRef = doc(
+  db,
+  'notificationSettings',
+  'current',
+).withConverter(plainConverter<NotificationSettings>())

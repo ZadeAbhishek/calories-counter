@@ -4,6 +4,7 @@ import { BottomTabBar } from '@/components/layout/BottomTabBar'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { Toaster } from '@/components/ui/sonner'
+import { useDailyReminder } from '@/hooks/useDailyReminder'
 import type { TabKey } from '@/lib/constants'
 
 // Each tab pulls in its own heavy libraries (Recharts, dnd-kit) — code-split
@@ -20,23 +21,32 @@ const SettingsTab = lazy(() =>
   })),
 )
 
-function App() {
+function AppContent() {
   const [tab, setTab] = useState<TabKey>('gym')
+  useDailyReminder()
 
+  return (
+    <>
+      <div className="sticky top-0 z-40 mx-auto flex w-full max-w-xl justify-end bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <ThemeToggle />
+      </div>
+      <PageContainer>
+        <Suspense fallback={null}>
+          {tab === 'gym' && <GymTab />}
+          {tab === 'food' && <FoodTab />}
+          {tab === 'settings' && <SettingsTab />}
+        </Suspense>
+      </PageContainer>
+      <BottomTabBar active={tab} onChange={setTab} />
+    </>
+  )
+}
+
+function App() {
   return (
     <div className="min-h-svh bg-background text-foreground">
       <AuthGate>
-        <div className="sticky top-0 z-40 mx-auto flex w-full max-w-xl justify-end bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <ThemeToggle />
-        </div>
-        <PageContainer>
-          <Suspense fallback={null}>
-            {tab === 'gym' && <GymTab />}
-            {tab === 'food' && <FoodTab />}
-            {tab === 'settings' && <SettingsTab />}
-          </Suspense>
-        </PageContainer>
-        <BottomTabBar active={tab} onChange={setTab} />
+        <AppContent />
       </AuthGate>
       <Toaster position="top-center" />
     </div>
