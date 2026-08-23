@@ -67,6 +67,21 @@ npm run build
 firebase deploy --only hosting
 ```
 
+## Installing on iOS (free, no App Store)
+
+The app is a PWA (`vite-plugin-pwa`, manifest + service worker, icons
+generated from `icon-source.svg`). Once deployed:
+
+1. Open the live URL in **Safari** on iPhone (must be Safari, not Chrome —
+   iOS only supports installing PWAs from Safari).
+2. Tap **Share → Add to Home Screen**.
+
+That gives a real home-screen icon that opens full-screen (no Safari
+address bar). A real App Store listing or TestFlight distribution to other
+people both require Apple's $99/year Developer Program — there's no free
+path for those specifically, but this covers installing it on your own
+phone at no cost.
+
 ## Local testing without touching real data (optional)
 
 The app can point at the [Firebase Local Emulator Suite](https://firebase.google.com/docs/emulator-suite)
