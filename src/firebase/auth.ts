@@ -1,5 +1,6 @@
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithRedirect,
   signOut as firebaseSignOut,
@@ -21,4 +22,12 @@ export function signInWithGoogle() {
 
 export function signOut() {
   return firebaseSignOut(auth)
+}
+
+// Resolves the pending signInWithRedirect operation (if any) on return from
+// Google. onAuthStateChanged fires with the signed-in user regardless, but
+// this is the only way to observe an error from the redirect itself instead
+// of failing silently.
+export function consumeGoogleRedirectResult() {
+  return getRedirectResult(auth)
 }

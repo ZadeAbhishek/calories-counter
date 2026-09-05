@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Dumbbell } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { signInWithGoogle } from '@/firebase/auth'
 
@@ -13,6 +14,7 @@ export function SignInScreen() {
       // Page navigates away for the redirect; nothing else to do here.
     } catch (error) {
       console.error(error)
+      toast.error(error instanceof Error ? error.message : 'Google sign-in failed')
       setSigningIn(false)
     }
   }
