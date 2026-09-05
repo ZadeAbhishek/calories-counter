@@ -1,16 +1,21 @@
 # Fitness Tracker
 
-A personal fitness tracking web app — gym workout logging with progress
+A multi-user fitness tracking web app — gym workout logging with progress
 charts, food/weight/protein tracking with trend charts, and a drag-and-drop
-weekly workout planner. Built mobile-first (React + TypeScript + Vite +
-Tailwind + shadcn/ui), backed by Firebase (Firestore + silent anonymous
-auth, no login screen).
+session-based workout planner. Built mobile-first (React + TypeScript + Vite +
+Tailwind + shadcn/ui), backed by Firebase (Firestore + Google Sign-In).
+Anyone with a Google account can sign in; the exercise library is shared
+across all users, and everything else (logs, targets, sessions, notification
+settings) is private per account.
 
 ## First-time setup
 
 1. **Create a Firebase project** at [console.firebase.google.com](https://console.firebase.google.com).
    - Enable **Firestore** in **production mode** (not test mode).
-   - Under **Authentication → Sign-in method**, enable the **Anonymous** provider.
+   - Under **Authentication → Sign-in method**, enable the **Google**
+     provider (pick a support email when prompted). This is required —
+     without it, sign-in will fail in production even though it works
+     against the local emulator.
    - Under **Project settings → General → Your apps**, register a **Web app** to get its config values.
 
 2. **Configure the app:**
@@ -26,19 +31,24 @@ auth, no login screen).
    ```
 
 4. **Deploy Firestore rules** (do this before first real use, so your data
-   is never exposed under the default test-mode-style open rules):
+   is never exposed under the default test-mode-style open rules, and
+   again any time `firestore.rules` changes):
    ```bash
    firebase use --add   # pick your project, first time only
    firebase deploy --only firestore:rules
    ```
 
-5. **Harden the security rules** once you have a real anonymous uid: open
-   the app once, find your uid in the Firebase console under
-   **Authentication**, then edit `firestore.rules` — replace
-   `isAllowedUser()`'s body with the uid-allowlist version described in
-   that file's comments, and redeploy. This restricts the database to your
-   device(s) instead of anyone who can call the (public, credential-free)
-   anonymous sign-in endpoint.
+5. **Clean up the legacy-migration rules once your data has moved.** If you
+   used an earlier single-user version of this app, `firestore.rules`
+   contains a temporary block (clearly commented) that lets the one-time
+   migration in `src/lib/migrateLegacyData.ts` copy your old top-level
+   `dailyLogs`/`workoutLogs`/`workoutPlanItems`/`sessions`/`targets`/
+   `notificationSettings` documents into `users/{uid}/...` on your first
+   real sign-in. Once you've signed in and confirmed (via the Firebase
+   console) that those top-level collections are empty and your data
+   shows up under `users/<your-uid>/...`, delete that temporary block from
+   `firestore.rules` and redeploy. A brand-new install has nothing to
+   migrate and can delete that block immediately.
 
 ## Deploying the app itself
 
@@ -57,8 +67,8 @@ Either works off the same build — pick one:
    deploys automatically. The site lands at
    `https://<your-username>.github.io/<repo-name>/`.
 4. In the Firebase console, under **Authentication → Settings → Authorized
-   domains**, add that `github.io` URL's host — anonymous sign-in will
-   fail with `auth/unauthorized-domain` from any host not on that list.
+   domains**, add that `github.io` URL's host — Google sign-in will fail
+   with `auth/unauthorized-domain` from any host not on that list.
 
 ### Option B: Firebase Hosting
 
@@ -99,6 +109,6 @@ values work for the other `VITE_FIREBASE_*` keys in emulator mode) and run
 
 - Vite + React + TypeScript
 - Tailwind CSS + shadcn/ui
-- Firebase (Firestore + Anonymous Auth + Hosting)
+- Firebase (Firestore + Google Auth + Hosting)
 - Recharts (charts)
 - @dnd-kit (drag-and-drop workout planner)

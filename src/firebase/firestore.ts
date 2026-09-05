@@ -46,27 +46,47 @@ function plainConverter<T>(): FirestoreDataConverter<T> {
   }
 }
 
+// Shared across every signed-in user — the one thing this app deliberately
+// does NOT scope per-user, per the "workouts are common" design.
 export const exercisesCol = collection(db, 'exercises').withConverter(
   converterWithId<Exercise>(),
 )
-export const workoutLogsCol = collection(db, 'workoutLogs').withConverter(
-  converterWithId<WorkoutLog>(),
-)
-export const workoutPlanItemsCol = collection(
-  db,
-  'workoutPlanItems',
-).withConverter(converterWithId<WorkoutPlanItem>())
-export const sessionsCol = collection(db, 'sessions').withConverter(
-  converterWithId<WorkoutSession>(),
-)
-export const dailyLogsCol = collection(db, 'dailyLogs').withConverter(
-  plainConverter<DailyLog>(),
-)
-export const targetsDocRef = doc(db, 'targets', 'current').withConverter(
-  plainConverter<Targets>(),
-)
-export const notificationSettingsDocRef = doc(
-  db,
-  'notificationSettings',
-  'current',
-).withConverter(plainConverter<NotificationSettings>())
+
+// Everything else lives under users/{uid}/... , so these are functions of
+// the current uid rather than module-level singletons — there's no "the"
+// collection until you know which user's data you mean.
+export function workoutLogsCol(uid: string) {
+  return collection(db, 'users', uid, 'workoutLogs').withConverter(
+    converterWithId<WorkoutLog>(),
+  )
+}
+
+export function workoutPlanItemsCol(uid: string) {
+  return collection(db, 'users', uid, 'workoutPlanItems').withConverter(
+    converterWithId<WorkoutPlanItem>(),
+  )
+}
+
+export function sessionsCol(uid: string) {
+  return collection(db, 'users', uid, 'sessions').withConverter(
+    converterWithId<WorkoutSession>(),
+  )
+}
+
+export function dailyLogsCol(uid: string) {
+  return collection(db, 'users', uid, 'dailyLogs').withConverter(
+    plainConverter<DailyLog>(),
+  )
+}
+
+export function targetsDocRef(uid: string) {
+  return doc(db, 'users', uid, 'targets', 'current').withConverter(
+    plainConverter<Targets>(),
+  )
+}
+
+export function notificationSettingsDocRef(uid: string) {
+  return doc(db, 'users', uid, 'notificationSettings', 'current').withConverter(
+    plainConverter<NotificationSettings>(),
+  )
+}

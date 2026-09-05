@@ -1,63 +1,91 @@
 rules_version = '2';
 
-// Baseline rules: any authenticated request is allowed. The app signs in
-// anonymously with no visible login screen (see src/firebase/auth.ts), so
-// this already blocks unauthenticated scanners/bots hitting the public
-// Firebase config. Once you have a real anonymous uid (visible in the
-// Firebase console's Authentication tab after your first load), harden
-// this further by replacing `isAllowedUser()` with an allowlist check,
-// e.g.:
-//
-//   function isAllowedUser() {
-//     return request.auth != null &&
-//       request.auth.uid in ["<your-anonymous-uid>"];
-//   }
-//
-// This pins access to your specific device/browser session(s) instead of
-// "anyone who calls signInAnonymously()", which is a public, credential-free
-// endpoint by design.
+// Multi-user model: exercises are a shared library any signed-in user can
+// read and add to; everything else lives under users/{uid}/... and only
+// that uid may touch it. Anonymous auth is no longer used — every request
+// here comes from a real Google-authenticated account (see
+// src/firebase/auth.ts) — so a plain `request.auth != null` check is
+// already meaningful, not just "blocks bots."
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAllowedUser() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
     match /exercises/{id} {
-      allow read, write: if isAllowedUser();
+      allow read, write: if isSignedIn();
     }
 
-    match /workoutLogs/{id} {
-      allow read, write: if isAllowedUser();
+    match /users/{uid} {
+      match /workoutLogs/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /workoutPlanItems/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /sessions/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /targets/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /notificationSettings/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /_migration/{id} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /dailyLogs/{id} {
+        allow read: if isOwner(uid);
+        // Each field is either absent, or explicitly null (an "unset"
+        // value the app writes for empty form fields), or a number — never
+        // any other type. Split from `delete` below: request.resource is
+        // null on delete, so a combined `write` rule referencing
+        // request.resource.data would error (and thus deny) every delete.
+        allow create, update: if isOwner(uid)
+          && (!('calories' in request.resource.data) || request.resource.data.calories == null || request.resource.data.calories is number)
+          && (!('protein' in request.resource.data) || request.resource.data.protein == null || request.resource.data.protein is number)
+          && (!('weight' in request.resource.data) || request.resource.data.weight == null || request.resource.data.weight is number);
+        allow delete: if isOwner(uid);
+      }
     }
 
-    match /workoutPlanItems/{id} {
-      allow read, write: if isAllowedUser();
-    }
-
-    match /sessions/{id} {
-      allow read, write: if isAllowedUser();
-    }
-
-    match /targets/{id} {
-      allow read, write: if isAllowedUser();
-    }
-
-    match /notificationSettings/{id} {
-      allow read, write: if isAllowedUser();
-    }
-
+    // TEMPORARY — for the one-time migration from this app's original
+    // single-user data model (plain top-level collections) into
+    // users/{uid}/... (see src/lib/migrateLegacyData.ts). Any signed-in
+    // user can currently read AND write these old paths, which is exactly
+    // as open as this whole database was before multi-user existed — safe
+    // for a single trusted early user, but remove this whole block once
+    // you've confirmed your data migrated (check the Firestore console:
+    // your old top-level dailyLogs/workoutLogs/etc. should be gone,
+    // replaced by users/<your-uid>/...).
     match /dailyLogs/{id} {
-      allow read: if isAllowedUser();
-      // Each field is either absent, or explicitly null (an "unset" value
-      // the app writes for empty form fields), or a number — never any
-      // other type. Split from `delete` below: request.resource is null on
-      // delete, so a combined `write` rule referencing request.resource.data
-      // would error (and thus deny) every delete.
-      allow create, update: if isAllowedUser()
-        && (!('calories' in request.resource.data) || request.resource.data.calories == null || request.resource.data.calories is number)
-        && (!('protein' in request.resource.data) || request.resource.data.protein == null || request.resource.data.protein is number)
-        && (!('weight' in request.resource.data) || request.resource.data.weight == null || request.resource.data.weight is number);
-      allow delete: if isAllowedUser();
+      allow read, write: if isSignedIn();
+    }
+    match /workoutLogs/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /workoutPlanItems/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /sessions/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /targets/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /notificationSettings/{id} {
+      allow read, write: if isSignedIn();
     }
 
     // Explicit deny-all fallthrough for anything not matched above.

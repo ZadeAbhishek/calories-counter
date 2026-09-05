@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { dailyLogsCol } from '@/firebase/firestore'
+import { useAuth } from '@/contexts/AuthContext'
 import { useNotificationSettings } from '@/hooks/useNotificationSettings'
 import { todayKey } from '@/lib/dates'
 
@@ -25,6 +26,7 @@ function parseTimeToMinutes(time: string): number | null {
  * you actually open it.
  */
 export function useDailyReminder() {
+  const { uid } = useAuth()
   const { settings } = useNotificationSettings()
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function useDailyReminder() {
       if (localStorage.getItem(LAST_SHOWN_KEY) === today) return
       if (minutesSinceMidnight(new Date()) < reminderMinutes!) return
 
-      const snapshot = await getDoc(doc(dailyLogsCol, today))
+      const snapshot = await getDoc(doc(dailyLogsCol(uid), today))
       const log = snapshot.exists() ? snapshot.data() : null
       const loggedToday =
         !!log && (log.calories !== null || log.protein !== null || log.weight !== null)
@@ -67,5 +69,5 @@ export function useDailyReminder() {
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [settings])
+  }, [settings, uid])
 }

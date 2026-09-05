@@ -9,6 +9,7 @@ import {
   setDoc,
 } from 'firebase/firestore'
 import { workoutLogsCol } from '@/firebase/firestore'
+import { useAuth } from '@/contexts/AuthContext'
 import type { WorkoutLog, WorkoutSet } from '@/types/workoutLog'
 
 function logId(date: string, exerciseId: string) {
@@ -16,17 +17,18 @@ function logId(date: string, exerciseId: string) {
 }
 
 export function useWorkoutLogs() {
+  const { uid } = useAuth()
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const logsQuery = query(workoutLogsCol, orderBy('date', 'desc'))
+    const logsQuery = query(workoutLogsCol(uid), orderBy('date', 'desc'))
     const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
       setWorkoutLogs(snapshot.docs.map((docSnapshot) => docSnapshot.data()))
       setLoading(false)
     })
     return unsubscribe
-  }, [])
+  }, [uid])
 
   async function upsertWorkoutLog(params: {
     date: string
@@ -37,7 +39,7 @@ export function useWorkoutLogs() {
     existingCreatedAt?: number
   }) {
     const id = logId(params.date, params.exerciseId)
-    await setDoc(doc(workoutLogsCol, id), {
+    await setDoc(doc(workoutLogsCol(uid), id), {
       id,
       date: params.date,
       exerciseId: params.exerciseId,
@@ -50,7 +52,7 @@ export function useWorkoutLogs() {
   }
 
   async function deleteWorkoutLog(date: string, exerciseId: string) {
-    await deleteDoc(doc(workoutLogsCol, logId(date, exerciseId)))
+    await deleteDoc(doc(workoutLogsCol(uid), logId(date, exerciseId)))
   }
 
   return { workoutLogs, loading, upsertWorkoutLog, deleteWorkoutLog }

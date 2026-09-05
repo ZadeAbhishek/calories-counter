@@ -3,6 +3,7 @@ import { AuthGate } from '@/components/layout/AuthGate'
 import { BottomTabBar } from '@/components/layout/BottomTabBar'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { UserMenu } from '@/components/layout/UserMenu'
 import { Toaster } from '@/components/ui/sonner'
 import { useDailyReminder } from '@/hooks/useDailyReminder'
 import type { TabKey } from '@/lib/constants'
@@ -27,7 +28,8 @@ function AppContent() {
 
   return (
     <>
-      <div className="sticky top-0 z-40 mx-auto flex w-full max-w-xl justify-end bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky top-0 z-40 mx-auto flex w-full max-w-xl items-center justify-between bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <UserMenu />
         <ThemeToggle />
       </div>
       <PageContainer>
