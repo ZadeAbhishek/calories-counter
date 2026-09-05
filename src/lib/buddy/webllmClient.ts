@@ -1,5 +1,6 @@
 import {
   CreateMLCEngine,
+  prebuiltAppConfig,
   type ChatCompletionMessageParam,
   type InitProgressReport,
   type MLCEngine,
@@ -13,7 +14,15 @@ let enginePromise: Promise<MLCEngine> | null = null
 
 export function loadEngine(onProgress: (report: InitProgressReport) => void): Promise<MLCEngine> {
   if (!enginePromise) {
-    enginePromise = CreateMLCEngine(MODEL_ID, { initProgressCallback: onProgress })
+    enginePromise = CreateMLCEngine(MODEL_ID, {
+      initProgressCallback: onProgress,
+      // WebLLM defaults to the browser's Cache Storage API, which rejects
+      // Hugging Face's redirect-based file responses on Safari specifically
+      // ("Cache.add() encountered a network error") — Chrome tolerates the
+      // same redirects fine. IndexedDB stores the fetched bytes directly and
+      // sidesteps the Cache API's redirect handling entirely.
+      appConfig: { ...prebuiltAppConfig, cacheBackend: 'indexeddb' },
+    })
   }
   return enginePromise
 }
