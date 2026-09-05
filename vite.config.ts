@@ -17,6 +17,17 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png'],
+      workbox: {
+        // The WebLLM-powered workout buddy spike is lazy-loaded but bundles
+        // to several MB (the model weights are fetched separately at
+        // runtime by WebLLM itself and were never a precache concern; this
+        // is the WebLLM *library* code). Precaching would force every
+        // visitor to download it upfront just to install the PWA. Exclude
+        // it so it loads normally on demand when opened instead. Update
+        // this pattern if the chunk's source file is renamed (e.g. once
+        // WorkoutBuddySession supersedes BuddySpikeScreen).
+        globIgnores: ['**/BuddySpikeScreen-*.js'],
+      },
       manifest: {
         name: 'Fitness Tracker',
         short_name: 'Fitness',
