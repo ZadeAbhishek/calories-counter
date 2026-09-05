@@ -98,7 +98,7 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
     }
   }
 
-  function toggleTestTone() {
+  async function toggleTestTone() {
     if (testToneOn) {
       audioCtxRef.current?.close()
       audioCtxRef.current = null
@@ -106,6 +106,11 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
       return
     }
     const ctx = new AudioContext()
+    // iOS Safari creates AudioContext in a "suspended" state even inside a
+    // tap handler — the oscillator runs but produces no audible sound until
+    // this resolves.
+    await ctx.resume()
+    appendLog(`AudioContext state after resume: ${ctx.state}`)
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     gain.gain.value = 0.05
