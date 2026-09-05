@@ -11,7 +11,8 @@ export function SignInScreen() {
     setSigningIn(true)
     try {
       await signInWithGoogle()
-      // Page navigates away for the redirect; nothing else to do here.
+      // AuthGate's onAuthStateChanged listener picks up the signed-in user
+      // and unmounts this screen; nothing else to do here on success.
     } catch (error) {
       console.error(error)
       toast.error(error instanceof Error ? error.message : 'Google sign-in failed')

@@ -1,8 +1,7 @@
 import {
   GoogleAuthProvider,
-  getRedirectResult,
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth'
@@ -15,19 +14,14 @@ export function subscribeToAuthState(
 }
 
 export function signInWithGoogle() {
-  // Redirect rather than a popup: popups are unreliable in installed PWAs
-  // (notably iOS home-screen apps), where they're often silently blocked.
-  return signInWithRedirect(auth, new GoogleAuthProvider())
+  // Popup rather than a redirect: signInWithRedirect relies on browser
+  // storage surviving a full navigation away to Google and back, which is
+  // unreliable in installed iOS home-screen PWAs (the round trip can land
+  // back in a different storage context, silently losing the pending
+  // sign-in). A popup keeps the app's page alive the whole time instead.
+  return signInWithPopup(auth, new GoogleAuthProvider())
 }
 
 export function signOut() {
   return firebaseSignOut(auth)
-}
-
-// Resolves the pending signInWithRedirect operation (if any) on return from
-// Google. onAuthStateChanged fires with the signed-in user regardless, but
-// this is the only way to observe an error from the redirect itself instead
-// of failing silently.
-export function consumeGoogleRedirectResult() {
-  return getRedirectResult(auth)
 }

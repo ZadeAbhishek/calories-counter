@@ -1,8 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { toast } from 'sonner'
 import { AuthContext, type AuthUser } from '@/contexts/AuthContext'
 import { SignInScreen } from '@/components/layout/SignInScreen'
-import { consumeGoogleRedirectResult, subscribeToAuthState } from '@/firebase/auth'
+import { subscribeToAuthState } from '@/firebase/auth'
 import { migrateLegacyDataIfNeeded } from '@/lib/migrateLegacyData'
 
 type Status =
@@ -21,17 +20,6 @@ function LoadingScreen({ label }: { label: string }) {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
-
-  useEffect(() => {
-    consumeGoogleRedirectResult()
-      .then((result) => {
-        console.log('Google redirect result:', result ? result.user.uid : 'no pending redirect')
-      })
-      .catch((error) => {
-        console.error('Google redirect sign-in failed:', error)
-        toast.error(error instanceof Error ? error.message : 'Google sign-in failed')
-      })
-  }, [])
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState((firebaseUser) => {
