@@ -63,6 +63,39 @@ export function NotificationSettingsForm() {
     }
   }
 
+  async function handleTest() {
+    try {
+      if (permission === 'unsupported') {
+        toast.error('This browser does not support notifications at all')
+        return
+      }
+      let current = permission
+      if (current === 'default') {
+        current = await Notification.requestPermission()
+        setPermission(current)
+      }
+      if (current !== 'granted') {
+        toast.error(`Permission is "${current}" — notifications can't fire until it's granted`)
+        return
+      }
+      const body = description || 'Test notification — this is what your reminder will look like.'
+      const registration = await navigator.serviceWorker?.getRegistration()
+      if (registration) {
+        await registration.showNotification('Fitness Tracker', {
+          body,
+          icon: `${import.meta.env.BASE_URL}pwa-192.png`,
+        })
+        toast.success('Sent via service worker — check your notifications')
+      } else {
+        new Notification('Fitness Tracker', { body })
+        toast.success('Sent directly — check your notifications')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error(`Notification failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -101,6 +134,9 @@ export function NotificationSettingsForm() {
               placeholder="Log your food for today!"
             />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Permission status: <span className="font-medium">{permission}</span>
+          </p>
           {permission === 'denied' && (
             <p className="text-xs text-destructive">
               Notifications are blocked for this site in your browser/OS
@@ -112,9 +148,14 @@ export function NotificationSettingsForm() {
               This browser doesn&apos;t support notifications.
             </p>
           )}
-          <Button type="submit" disabled={saving || loading}>
-            {saving ? 'Saving...' : 'Save reminder'}
-          </Button>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={saving || loading} className="flex-1">
+              {saving ? 'Saving...' : 'Save reminder'}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleTest}>
+              Send test
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

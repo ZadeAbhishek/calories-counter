@@ -1,15 +1,3 @@
-export const DAYS_OF_WEEK = [
-  { key: 'mon', label: 'Monday', short: 'Mon' },
-  { key: 'tue', label: 'Tuesday', short: 'Tue' },
-  { key: 'wed', label: 'Wednesday', short: 'Wed' },
-  { key: 'thu', label: 'Thursday', short: 'Thu' },
-  { key: 'fri', label: 'Friday', short: 'Fri' },
-  { key: 'sat', label: 'Saturday', short: 'Sat' },
-  { key: 'sun', label: 'Sunday', short: 'Sun' },
-] as const
-
-export type DayKey = (typeof DAYS_OF_WEEK)[number]['key']
-
 export const UNITS = {
   weight: 'kg',
   protein: 'g',

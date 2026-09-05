@@ -9,7 +9,7 @@ export function SettingsTab() {
       <TargetSettingsForm />
       <NotificationSettingsForm />
       <div className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold">Weekly workout plan</h2>
+        <h2 className="text-base font-semibold">Workout plan</h2>
         <WorkoutPlanBuilder />
       </div>
     </div>

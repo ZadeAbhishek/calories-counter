@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -12,22 +12,28 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { ExercisePool } from '@/components/settings/ExercisePool'
-import { DaySection } from '@/components/settings/DaySection'
+import { SessionSection } from '@/components/settings/SessionSection'
 import { useExercises } from '@/hooks/useExercises'
+import { useSessions } from '@/hooks/useSessions'
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan'
-import { DAYS_OF_WEEK, type DayKey } from '@/lib/constants'
+import type { WorkoutSession } from '@/types/session'
 import type { WorkoutPlanItem } from '@/types/workoutPlanItem'
 
 type DragPayload =
   | { type: 'pool-item'; exerciseId: string; exerciseName: string }
-  | { type: 'plan-item'; day: DayKey; exerciseId: string; exerciseName: string }
+  | { type: 'plan-item'; sessionId: string; exerciseId: string; exerciseName: string }
 
-function groupByDay(items: WorkoutPlanItem[]): Map<DayKey, WorkoutPlanItem[]> {
-  const map = new Map<DayKey, WorkoutPlanItem[]>()
-  for (const day of DAYS_OF_WEEK) map.set(day.key, [])
+function groupBySession(
+  items: WorkoutPlanItem[],
+  sessions: WorkoutSession[],
+): Map<string, WorkoutPlanItem[]> {
+  const map = new Map<string, WorkoutPlanItem[]>()
+  for (const session of sessions) map.set(session.id, [])
   for (const item of items) {
-    map.get(item.day)?.push(item)
+    map.get(item.sessionId)?.push(item)
   }
   for (const list of map.values()) list.sort((a, b) => a.order - b.order)
   return map
@@ -35,9 +41,16 @@ function groupByDay(items: WorkoutPlanItem[]): Map<DayKey, WorkoutPlanItem[]> {
 
 export function WorkoutPlanBuilder() {
   const { exercises, addExercise, deleteExercise } = useExercises()
-  const { planItems, addPlanItem, movePlanItem, reorderDay, removePlanItem } =
+  const { sessions, addSession, renameSession, deleteSession } = useSessions()
+  const { planItems, addPlanItem, movePlanItem, reorderSession, removePlanItem } =
     useWorkoutPlan()
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null)
+  // Tracks add-session calls already sent but not yet reflected in
+  // `sessions` (Firestore's onSnapshot round-trip hasn't caught up). Without
+  // this, naming a new session "Session {sessions.length + 1}" races: two
+  // quick clicks both read the same stale length and create two sessions
+  // both named "Session 1".
+  const pendingSessionCount = useRef(0)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -49,12 +62,12 @@ export function WorkoutPlanBuilder() {
     }),
   )
 
-  const itemsByDay = groupByDay(planItems)
+  const itemsBySession = groupBySession(planItems, sessions)
 
-  function resolveTargetDay(overId: string, overData: unknown): DayKey | null {
-    const data = overData as { day?: DayKey } | undefined
-    if (data?.day) return data.day
-    if (overId.startsWith('day-')) return overId.slice(4) as DayKey
+  function resolveTargetSession(overId: string, overData: unknown): string | null {
+    const data = overData as { sessionId?: string } | undefined
+    if (data?.sessionId) return data.sessionId
+    if (overId.startsWith('session-')) return overId.slice(8)
     return null
   }
 
@@ -71,13 +84,13 @@ export function WorkoutPlanBuilder() {
     const activeData = active.data.current as DragPayload | undefined
     if (!activeData) return
 
-    const targetDay = resolveTargetDay(String(over.id), over.data.current)
-    if (!targetDay) return
+    const targetSessionId = resolveTargetSession(String(over.id), over.data.current)
+    if (!targetSessionId) return
 
     if (activeData.type === 'pool-item') {
-      const order = itemsByDay.get(targetDay)?.length ?? 0
+      const order = itemsBySession.get(targetSessionId)?.length ?? 0
       await addPlanItem(
-        targetDay,
+        targetSessionId,
         activeData.exerciseId,
         activeData.exerciseName,
         order,
@@ -85,20 +98,30 @@ export function WorkoutPlanBuilder() {
       return
     }
 
-    const sourceDay = activeData.day
+    const sourceSessionId = activeData.sessionId
     const itemId = String(active.id)
 
-    if (sourceDay === targetDay) {
-      const dayItems = itemsByDay.get(targetDay) ?? []
-      const oldIndex = dayItems.findIndex((item) => item.id === itemId)
-      const overIndex = dayItems.findIndex((item) => item.id === over.id)
-      const newIndex = overIndex === -1 ? dayItems.length - 1 : overIndex
+    if (sourceSessionId === targetSessionId) {
+      const items = itemsBySession.get(targetSessionId) ?? []
+      const oldIndex = items.findIndex((item) => item.id === itemId)
+      const overIndex = items.findIndex((item) => item.id === over.id)
+      const newIndex = overIndex === -1 ? items.length - 1 : overIndex
       if (oldIndex === -1 || oldIndex === newIndex) return
-      const reordered = arrayMove(dayItems, oldIndex, newIndex)
-      await reorderDay(reordered.map((item) => item.id))
+      const reordered = arrayMove(items, oldIndex, newIndex)
+      await reorderSession(reordered.map((item) => item.id))
     } else {
-      const targetItems = itemsByDay.get(targetDay) ?? []
-      await movePlanItem(itemId, targetDay, targetItems.length)
+      const targetItems = itemsBySession.get(targetSessionId) ?? []
+      await movePlanItem(itemId, targetSessionId, targetItems.length)
+    }
+  }
+
+  async function handleAddSession() {
+    const nextNumber = sessions.length + pendingSessionCount.current + 1
+    pendingSessionCount.current += 1
+    try {
+      await addSession(`Session ${nextNumber}`)
+    } finally {
+      pendingSessionCount.current -= 1
     }
   }
 
@@ -115,17 +138,31 @@ export function WorkoutPlanBuilder() {
           addExercise={addExercise}
           deleteExercise={deleteExercise}
         />
-        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3">
-          {DAYS_OF_WEEK.map((day) => (
-            <DaySection
-              key={day.key}
-              day={day.key}
-              label={day.label}
-              items={itemsByDay.get(day.key) ?? []}
-              onRemove={removePlanItem}
-            />
-          ))}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Sessions</h3>
+          <Button type="button" variant="outline" size="sm" onClick={handleAddSession}>
+            <Plus className="size-4" />
+            Add session
+          </Button>
         </div>
+        {sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Add a session, then drag workouts onto it.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3">
+            {sessions.map((session) => (
+              <SessionSection
+                key={session.id}
+                session={session}
+                items={itemsBySession.get(session.id) ?? []}
+                onRemoveItem={removePlanItem}
+                onRename={renameSession}
+                onDeleteSession={deleteSession}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <DragOverlay>
         {activeDrag ? (

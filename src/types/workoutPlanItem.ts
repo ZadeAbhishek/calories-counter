@@ -1,8 +1,6 @@
-import type { DayKey } from '@/lib/constants'
-
 export interface WorkoutPlanItem {
   id: string
-  day: DayKey
+  sessionId: string
   exerciseId: string
   exerciseName: string
   order: number

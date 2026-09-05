@@ -2,15 +2,20 @@ import { useState } from 'react'
 import { AddSetForm } from '@/components/gym/AddSetForm'
 import { ExerciseProgressChart } from '@/components/gym/ExerciseProgressChart'
 import { LastSessionCard } from '@/components/gym/LastSessionCard'
+import { SessionLoader } from '@/components/gym/SessionLoader'
 import { WorkoutLogTable } from '@/components/gym/WorkoutLogTable'
 import { useExercises } from '@/hooks/useExercises'
+import { useSessions } from '@/hooks/useSessions'
 import { useWorkoutLogs } from '@/hooks/useWorkoutLogs'
+import { useWorkoutPlan } from '@/hooks/useWorkoutPlan'
 import { todayKey } from '@/lib/dates'
 import type { WorkoutLog } from '@/types/workoutLog'
 
 export function GymTab() {
   const { exercises, addExercise } = useExercises()
   const { workoutLogs, upsertWorkoutLog, deleteWorkoutLog } = useWorkoutLogs()
+  const { sessions } = useSessions()
+  const { planItems } = useWorkoutPlan()
   const [date, setDate] = useState(todayKey())
   const [exerciseId, setExerciseId] = useState('')
 
@@ -20,10 +25,20 @@ export function GymTab() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function handleLoadExercise(id: string) {
+    setExerciseId(id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">Gym</h1>
       <LastSessionCard workoutLogs={workoutLogs} />
+      <SessionLoader
+        sessions={sessions}
+        planItems={planItems}
+        onSelectExercise={handleLoadExercise}
+      />
       <AddSetForm
         exercises={exercises}
         workoutLogs={workoutLogs}

@@ -2,17 +2,16 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { DayKey } from '@/lib/constants'
 
 export function PlanItemCard({
   id,
-  day,
+  sessionId,
   exerciseId,
   exerciseName,
   onRemove,
 }: {
   id: string
-  day: DayKey
+  sessionId: string
   exerciseId: string
   exerciseName: string
   onRemove: () => void
@@ -20,7 +19,7 @@ export function PlanItemCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id,
-      data: { type: 'plan-item', day, exerciseId, exerciseName },
+      data: { type: 'plan-item', sessionId, exerciseId, exerciseName },
     })
 
   const style = {

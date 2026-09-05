@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,6 +8,63 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { todayKey } from '@/lib/dates'
 import { UNITS } from '@/lib/constants'
 import type { DailyLog, DailyLogFields } from '@/types/dailyLog'
+
+type FieldKey = keyof DailyLogFields
+
+const FIELD_LABELS: Record<FieldKey, string> = {
+  weight: 'weight',
+  calories: 'calories',
+  protein: 'protein',
+}
+
+function FieldRow({
+  field,
+  label,
+  value,
+  onChange,
+  onSaveField,
+  disabled,
+  placeholder,
+  step,
+}: {
+  field: FieldKey
+  label: string
+  value: string
+  onChange: (value: string) => void
+  onSaveField: (field: FieldKey, value: string) => void
+  disabled: boolean
+  placeholder: string
+  step: string
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={`entry-${field}`}>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          id={`entry-${field}`}
+          type="number"
+          inputMode="decimal"
+          step={step}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={disabled}
+          onClick={() => onSaveField(field, value)}
+          aria-label={`Save ${FIELD_LABELS[field]} only`}
+          title={`Save just ${FIELD_LABELS[field]}`}
+        >
+          <Check className="size-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export function DailyEntryForm({
   dailyLogs,
@@ -25,6 +83,7 @@ export function DailyEntryForm({
   const [protein, setProtein] = useState('')
   const [weight, setWeight] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingField, setSavingField] = useState<FieldKey | null>(null)
   const [clearing, setClearing] = useState(false)
 
   const existingLog = useMemo(
@@ -67,6 +126,21 @@ export function DailyEntryForm({
     }
   }
 
+  async function handleSaveField(field: FieldKey, rawValue: string) {
+    setSavingField(field)
+    try {
+      await upsertDailyLog(date, {
+        [field]: rawValue === '' ? null : Number(rawValue),
+      })
+      toast.success(`Saved ${FIELD_LABELS[field]}`)
+    } catch (error) {
+      console.error(error)
+      toast.error(`Could not save ${FIELD_LABELS[field]}`)
+    } finally {
+      setSavingField(null)
+    }
+  }
+
   async function handleClear() {
     setClearing(true)
     try {
@@ -79,6 +153,8 @@ export function DailyEntryForm({
       setClearing(false)
     }
   }
+
+  const anyBusy = saving || clearing || savingField !== null
 
   return (
     <Card>
@@ -97,51 +173,52 @@ export function DailyEntryForm({
               max={todayKey()}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="entryWeight">Body weight ({UNITS.weight})</Label>
-            <Input
-              id="entryWeight"
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              value={weight}
-              onChange={(event) => setWeight(event.target.value)}
-              placeholder="e.g. 74.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="entryCalories">Calories ({UNITS.calories})</Label>
-            <Input
-              id="entryCalories"
-              type="number"
-              inputMode="decimal"
-              step="1"
-              value={calories}
-              onChange={(event) => setCalories(event.target.value)}
-              placeholder="e.g. 2100"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="entryProtein">Protein ({UNITS.protein})</Label>
-            <Input
-              id="entryProtein"
-              type="number"
-              inputMode="decimal"
-              step="1"
-              value={protein}
-              onChange={(event) => setProtein(event.target.value)}
-              placeholder="e.g. 140"
-            />
-          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Tap the check next to a field to save just that value, or fill in
+            what you have and use Save below for all of it at once.
+          </p>
+
+          <FieldRow
+            field="weight"
+            label={`Body weight (${UNITS.weight})`}
+            value={weight}
+            onChange={setWeight}
+            onSaveField={handleSaveField}
+            disabled={anyBusy}
+            placeholder="e.g. 74.5"
+            step="0.1"
+          />
+          <FieldRow
+            field="calories"
+            label={`Calories (${UNITS.calories})`}
+            value={calories}
+            onChange={setCalories}
+            onSaveField={handleSaveField}
+            disabled={anyBusy}
+            placeholder="e.g. 2100"
+            step="1"
+          />
+          <FieldRow
+            field="protein"
+            label={`Protein (${UNITS.protein})`}
+            value={protein}
+            onChange={setProtein}
+            onSaveField={handleSaveField}
+            disabled={anyBusy}
+            placeholder="e.g. 140"
+            step="1"
+          />
+
           <div className="flex gap-2">
-            <Button type="submit" disabled={saving || clearing} className="flex-1">
-              {saving ? 'Saving...' : 'Save'}
+            <Button type="submit" disabled={anyBusy} className="flex-1">
+              {saving ? 'Saving...' : 'Save all'}
             </Button>
             {existingLog && (
               <Button
                 type="button"
                 variant="outline"
-                disabled={saving || clearing}
+                disabled={anyBusy}
                 onClick={handleClear}
               >
                 {clearing ? 'Clearing...' : 'Clear this day'}

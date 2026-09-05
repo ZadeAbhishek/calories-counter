@@ -9,7 +9,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { workoutPlanItemsCol } from '@/firebase/firestore'
-import type { DayKey } from '@/lib/constants'
 import type { WorkoutPlanItem } from '@/types/workoutPlanItem'
 
 export function useWorkoutPlan() {
@@ -25,7 +24,7 @@ export function useWorkoutPlan() {
   }, [])
 
   async function addPlanItem(
-    day: DayKey,
+    sessionId: string,
     exerciseId: string,
     exerciseName: string,
     order: number,
@@ -33,7 +32,7 @@ export function useWorkoutPlan() {
     const ref = doc(workoutPlanItemsCol)
     await setDoc(ref, {
       id: ref.id,
-      day,
+      sessionId,
       exerciseId,
       exerciseName,
       order,
@@ -41,15 +40,19 @@ export function useWorkoutPlan() {
     })
   }
 
-  async function movePlanItem(itemId: string, newDay: DayKey, order: number) {
+  async function movePlanItem(
+    itemId: string,
+    newSessionId: string,
+    order: number,
+  ) {
     await setDoc(
       doc(workoutPlanItemsCol, itemId),
-      { day: newDay, order },
+      { sessionId: newSessionId, order },
       { merge: true },
     )
   }
 
-  async function reorderDay(orderedItemIds: string[]) {
+  async function reorderSession(orderedItemIds: string[]) {
     const batch = writeBatch(db)
     orderedItemIds.forEach((id, index) => {
       batch.set(doc(workoutPlanItemsCol, id), { order: index }, { merge: true })
@@ -66,7 +69,7 @@ export function useWorkoutPlan() {
     loading,
     addPlanItem,
     movePlanItem,
-    reorderDay,
+    reorderSession,
     removePlanItem,
   }
 }

@@ -15,6 +15,7 @@ import type { WorkoutPlanItem } from '@/types/workoutPlanItem'
 import type { DailyLog } from '@/types/dailyLog'
 import type { Targets } from '@/types/targets'
 import type { NotificationSettings } from '@/types/notificationSettings'
+import type { WorkoutSession } from '@/types/session'
 
 /** For collections whose documents carry an `id` field derived from the doc
  * key itself (never stored, always attached from `snapshot.id` on read). */
@@ -55,6 +56,9 @@ export const workoutPlanItemsCol = collection(
   db,
   'workoutPlanItems',
 ).withConverter(converterWithId<WorkoutPlanItem>())
+export const sessionsCol = collection(db, 'sessions').withConverter(
+  converterWithId<WorkoutSession>(),
+)
 export const dailyLogsCol = collection(db, 'dailyLogs').withConverter(
   plainConverter<DailyLog>(),
 )

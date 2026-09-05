@@ -34,6 +34,10 @@ service cloud.firestore {
       allow read, write: if isAllowedUser();
     }
 
+    match /sessions/{id} {
+      allow read, write: if isAllowedUser();
+    }
+
     match /targets/{id} {
       allow read, write: if isAllowedUser();
     }
