@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatCompletionMessageParam, MLCEngine } from '@mlc-ai/web-llm'
 import { Button } from '@/components/ui/button'
 import { generate, loadEngine } from '@/lib/buddy/webllmClient'
@@ -24,7 +24,16 @@ const SYSTEM_PROMPT: ChatCompletionMessageParam = {
 export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState('Not started')
   const [progressText, setProgressText] = useState('')
-  const [log, setLog] = useState<string[]>([])
+  // Report the two hard platform requirements immediately on first render,
+  // instead of finding out indirectly later.
+  const [log, setLog] = useState<string[]>(() => {
+    const hasWebGPU = 'gpu' in navigator
+    const hasSpeechRecognition = Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition)
+    return [
+      hasWebGPU ? 'WebGPU: available' : '⚠️ WebGPU: NOT available on this browser/OS version',
+      hasSpeechRecognition ? 'Speech recognition: available' : '⚠️ Speech recognition: NOT available',
+    ]
+  })
   const [gender, setGender] = useState<VoiceGender>('female')
   const [testToneOn, setTestToneOn] = useState(false)
   const [listening, setListening] = useState(false)
@@ -37,10 +46,16 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
   const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const historyRef = useRef<ChatCompletionMessageParam[]>([SYSTEM_PROMPT])
+  const logContainerRef = useRef<HTMLDivElement>(null)
 
   function appendLog(line: string) {
     setLog((prev) => [...prev.slice(-24), line])
   }
+
+  useEffect(() => {
+    const container = logContainerRef.current
+    if (container) container.scrollTop = container.scrollHeight
+  }, [log])
 
   async function handleLoadModel() {
     setStatus('Loading model...')
@@ -52,7 +67,7 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
       setStatus(`Model loaded in ${loadSeconds}s`)
     } catch (error) {
       setStatus('Model load failed')
-      appendLog(`Load error: ${error instanceof Error ? error.message : String(error)}`)
+      appendLog(`⚠️ Load error: ${error instanceof Error ? error.message : String(error)}`)
       return
     }
 
@@ -66,17 +81,21 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
   async function handleTimeGeneration() {
     const engine = engineRef.current
     if (!engine) {
-      appendLog('Load the model first')
+      appendLog('⚠️ Tap "1. Load model" first and wait for "Model loaded in..." before this will do anything')
       return
     }
-    const start = performance.now()
-    const reply = await generate(engine, [
-      SYSTEM_PROMPT,
-      { role: 'user', content: 'Say hello in one short sentence.' },
-    ])
-    const seconds = (performance.now() - start) / 1000
-    const approxTokens = Math.max(1, Math.round(reply.split(/\s+/).length * 1.3))
-    appendLog(`"${reply}" — ${seconds.toFixed(1)}s, ~${(approxTokens / seconds).toFixed(1)} tok/s est.`)
+    try {
+      const start = performance.now()
+      const reply = await generate(engine, [
+        SYSTEM_PROMPT,
+        { role: 'user', content: 'Say hello in one short sentence.' },
+      ])
+      const seconds = (performance.now() - start) / 1000
+      const approxTokens = Math.max(1, Math.round(reply.split(/\s+/).length * 1.3))
+      appendLog(`"${reply}" — ${seconds.toFixed(1)}s, ~${(approxTokens / seconds).toFixed(1)} tok/s est.`)
+    } catch (error) {
+      appendLog(`⚠️ Generation error: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   function toggleTestTone() {
@@ -112,15 +131,22 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
         if (!isFinal) return
         void (async () => {
           const engine = engineRef.current
-          if (!engine) return
-          historyRef.current.push({ role: 'user', content: transcript })
-          const reply = await generate(engine, historyRef.current)
-          historyRef.current.push({ role: 'assistant', content: reply })
-          appendLog(`Buddy: ${reply}`)
-          await speak(reply, voicesRef.current[gender])
+          if (!engine) {
+            appendLog('⚠️ Heard you, but the model isn\'t loaded — tap "1. Load model" first')
+            return
+          }
+          try {
+            historyRef.current.push({ role: 'user', content: transcript })
+            const reply = await generate(engine, historyRef.current)
+            historyRef.current.push({ role: 'assistant', content: reply })
+            appendLog(`Buddy: ${reply}`)
+            await speak(reply, voicesRef.current[gender])
+          } catch (error) {
+            appendLog(`⚠️ Reply error: ${error instanceof Error ? error.message : String(error)}`)
+          }
         })()
       },
-      (error) => appendLog(`Recognition error: ${error}`),
+      (error) => appendLog(`⚠️ Recognition error: ${error}`),
     )
     recognitionRef.current.start()
     setListening(true)
@@ -156,9 +182,11 @@ export function BuddySpikeScreen({ onClose }: { onClose: () => void }) {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto rounded-lg border border-border p-2 text-xs">
+      <div ref={logContainerRef} className="flex-1 overflow-y-auto rounded-lg border border-border p-2 text-xs">
         {log.map((line, i) => (
-          <p key={i}>{line}</p>
+          <p key={i} className={line.startsWith('⚠️') ? 'font-medium text-destructive' : undefined}>
+            {line}
+          </p>
         ))}
       </div>
     </div>
